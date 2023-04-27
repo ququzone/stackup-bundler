@@ -1,10 +1,14 @@
 package simulation
 
 import (
-	stdError "errors"
+	"context"
 	"fmt"
+	"strings"
 
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/stackup-wallet/stackup-bundler/pkg/entrypoint"
@@ -13,6 +17,18 @@ import (
 	"github.com/stackup-wallet/stackup-bundler/pkg/userop"
 )
 
+type revertError struct {
+	reason string // revert reason hex encoded
+}
+
+func (e *revertError) Error() string {
+	return "execution reverted"
+}
+
+func (e *revertError) ErrorData() interface{} {
+	return e.reason
+}
+
 // SimulateValidation makes a static call to Entrypoint.simulateValidation(userop) and returns the
 // results without any state changes.
 func SimulateValidation(
@@ -20,16 +36,30 @@ func SimulateValidation(
 	entryPoint common.Address,
 	op *userop.UserOperation,
 ) (*reverts.ValidationResultRevert, error) {
-	ep, err := entrypoint.NewEntrypoint(entryPoint, ethclient.NewClient(rpc))
+	parsedABI, err := abi.JSON(strings.NewReader(entrypoint.EntrypointABI))
+	if err != nil {
+		return nil, err
+	}
+	input, err := parsedABI.Pack("simulateValidation", entrypoint.UserOperation(*op))
 	if err != nil {
 		return nil, err
 	}
 
-	var res []interface{}
-	rawCaller := &entrypoint.EntrypointRaw{Contract: ep}
-	err = rawCaller.Call(nil, &res, "simulateValidation", entrypoint.UserOperation(*op))
-	if err == nil {
-		return nil, stdError.New("unexpected result from simulateValidation")
+	client := ethclient.NewClient(rpc)
+	data, err := client.CallContract(
+		context.Background(),
+		ethereum.CallMsg{
+			From: common.BigToAddress(common.Big0),
+			To:   &entryPoint,
+			Data: input,
+		},
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+	err = &revertError{
+		reason: hexutil.Encode(data),
 	}
 
 	sim, simErr := reverts.NewValidationResult(err)

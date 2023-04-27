@@ -58,6 +58,9 @@ func getBaseFeeWithEthClient(eth *ethclient.Client) GetBaseFeeFunc {
 		if err != nil {
 			return nil, err
 		}
+		if blk.BaseFee == nil {
+			return common.Big0, nil
+		}
 		return blk.BaseFee, nil
 	}
 }

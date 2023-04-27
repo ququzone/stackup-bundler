@@ -77,7 +77,7 @@ func (s *Standalone) ValidateOpValues() modules.UserOpHandlerFunc {
 // SimulateOp returns a UserOpHandler that runs through simulation of new UserOps with the EntryPoint.
 func (s *Standalone) SimulateOp() modules.UserOpHandlerFunc {
 	return func(ctx *modules.UserOpHandlerCtx) error {
-		gc := getCodeWithEthClient(s.eth)
+		// gc := getCodeWithEthClient(s.eth)
 		g := new(errgroup.Group)
 		g.Go(func() error {
 			sim, err := simulation.SimulateValidation(s.rpc, ctx.EntryPoint, ctx.UserOp)
@@ -95,27 +95,28 @@ func (s *Standalone) SimulateOp() modules.UserOpHandlerFunc {
 			return nil
 		})
 		g.Go(func() error {
-			ic, err := simulation.TraceSimulateValidation(
-				s.rpc,
-				ctx.EntryPoint,
-				ctx.UserOp,
-				ctx.ChainID,
-				s.tracer,
-				simulation.EntityStakes{
-					ctx.UserOp.GetFactory():   ctx.GetDepositInfo(ctx.UserOp.GetFactory()),
-					ctx.UserOp.Sender:         ctx.GetDepositInfo(ctx.UserOp.Sender),
-					ctx.UserOp.GetPaymaster(): ctx.GetDepositInfo(ctx.UserOp.GetPaymaster()),
-				},
-			)
-			if err != nil {
-				return errors.NewRPCError(errors.BANNED_OPCODE, err.Error(), err.Error())
-			}
+			// ic, err := simulation.TraceSimulateValidation(
+			// 	s.rpc,
+			// 	ctx.EntryPoint,
+			// 	ctx.UserOp,
+			// 	ctx.ChainID,
+			// 	s.tracer,
+			// 	simulation.EntityStakes{
+			// 		ctx.UserOp.GetFactory():   ctx.GetDepositInfo(ctx.UserOp.GetFactory()),
+			// 		ctx.UserOp.Sender:         ctx.GetDepositInfo(ctx.UserOp.Sender),
+			// 		ctx.UserOp.GetPaymaster(): ctx.GetDepositInfo(ctx.UserOp.GetPaymaster()),
+			// 	},
+			// )
+			// if err != nil {
+			// 	return errors.NewRPCError(errors.BANNED_OPCODE, err.Error(), err.Error())
+			// }
 
-			ch, err := getCodeHashes(ic, gc)
-			if err != nil {
-				return errors.NewRPCError(errors.BANNED_OPCODE, err.Error(), err.Error())
-			}
-			return saveCodeHashes(s.db, ctx.UserOp.GetUserOpHash(ctx.EntryPoint, ctx.ChainID), ch)
+			// ch, err := getCodeHashes(ic, gc)
+			// if err != nil {
+			// 	return errors.NewRPCError(errors.BANNED_OPCODE, err.Error(), err.Error())
+			// }
+			// return saveCodeHashes(s.db, ctx.UserOp.GetUserOpHash(ctx.EntryPoint, ctx.ChainID), ch)
+			return saveCodeHashes(s.db, ctx.UserOp.GetUserOpHash(ctx.EntryPoint, ctx.ChainID), []codeHash{})
 		})
 
 		return g.Wait()

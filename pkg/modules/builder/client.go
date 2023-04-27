@@ -83,6 +83,9 @@ func (b *BuilderClient) SendUserOperation() modules.BatchHandlerFunc {
 			return err
 		}
 		mbf := blk.BaseFee
+		if mbf == nil {
+			mbf = common.Big0
+		}
 		for i := 0; i < b.blocksInTheFuture; i++ {
 			a := big.NewInt(0).Mul(mbf, big.NewInt(1125))
 			b := big.NewInt(0).Div(a, big.NewInt(1000))
